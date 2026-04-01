@@ -24,6 +24,7 @@ import {
   getSessionId,
 } from '../../bootstrap/state.js'
 import { getOauthConfig } from '../../constants/oauth.js'
+import { CCH_PLACEHOLDER } from '../../constants/system.js'
 import { isDebugToStdErr, logForDebugging } from '../../utils/debug.js'
 import {
   getAWSRegion,
@@ -373,7 +374,6 @@ function getCustomHeaders(): Record<string, string> {
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
 
-const CCH_PLACEHOLDER = 'cch=00000'
 const CCH_SEED = 0x6E52736AC806831En
 
 /**

@@ -6,6 +6,8 @@ import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { getAPIProvider } from '../utils/model/providers.js'
 import { getWorkload } from '../utils/workloadContext.js'
 
+export const CCH_PLACEHOLDER = 'cch=00000'
+
 const DEFAULT_PREFIX = `You are Claude Code, Anthropic's official CLI for Claude.`
 const AGENT_SDK_CLAUDE_CODE_PRESET_PREFIX = `You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK.`
 const AGENT_SDK_PREFIX = `You are a Claude agent, built on Anthropic's Claude Agent SDK.`
@@ -78,7 +80,7 @@ export function getAttributionHeader(fingerprint: string): string {
   // because the hash must cover the entire JSON body (including this very string),
   // so we serialize with the placeholder first, hash that, then do a same-length
   // string replacement to avoid Content-Length changes or buffer reallocation.
-  const cch = ' cch=00000;'
+  const cch = ` ${CCH_PLACEHOLDER};`
   // cc_workload: turn-scoped hint so the API can route e.g. cron-initiated
   // requests to a lower QoS pool. Absent = interactive default. Safe re:
   // fingerprint (computed from msg chars + version only, line 78 above) and
