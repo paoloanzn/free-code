@@ -34,7 +34,9 @@ export function isCachedMicrocompactEnabled(): boolean {
 }
 
 export function isModelSupportedForCacheEditing(model: string): boolean {
-  return getCachedMCConfig().supportedModels.some(pattern =>
+  const patterns = getCachedMCConfig().supportedModels
+  // Empty array means all models are supported
+  return patterns.length === 0 || patterns.some(pattern =>
     model.includes(pattern),
   )
 }
