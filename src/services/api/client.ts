@@ -24,6 +24,7 @@ import {
   getSessionId,
 } from '../../bootstrap/state.js'
 import { getOauthConfig } from '../../constants/oauth.js'
+import { CCH_PLACEHOLDER } from '../../constants/system.js'
 import { isDebugToStdErr, logForDebugging } from '../../utils/debug.js'
 import {
   getAWSRegion,
@@ -373,6 +374,23 @@ function getCustomHeaders(): Record<string, string> {
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
 
+const CCH_SEED = 0x6E52736AC806831En
+
+/**
+ * Compute the cch attestation hash for a serialized request body.
+ *
+ * The body already contains the placeholder "cch=00000" inside the system
+ * prompt's attribution header. We hash the body *with* the placeholder in
+ * place (xxHash64, seeded), mask to 20 bits, and format as 5-char hex.
+ * The caller then does a single string replacement of the placeholder.
+ *
+ * Reference: https://a10k.co/b/reverse-engineering-claude-code-cch.html
+ */
+function computeCCH(body: string): string {
+  const hash = Bun.hash.xxHash64(body, CCH_SEED)
+  return (hash & 0xFFFFFn).toString(16).padStart(5, '0')
+}
+
 function buildFetch(
   fetchOverride: ClientOptions['fetch'],
   source: string | undefined,
@@ -402,6 +420,16 @@ function buildFetch(
     } catch {
       // never let logging crash the fetch
     }
-    return inner(input, { ...init, headers })
+    // Compute cch attestation hash and replace the placeholder in the body.
+    // The hash covers the full serialized JSON (with placeholder), then we
+    // swap the placeholder for the real value — same-length so Content-Length
+    // stays correct.
+    let body = init?.body
+    if (typeof body === 'string' && body.includes(CCH_PLACEHOLDER)) {
+      const cch = computeCCH(body)
+      body = body.replace(CCH_PLACEHOLDER, `cch=${cch}`)
+    }
+
+    return inner(input, { ...init, body, headers })
   }
 }

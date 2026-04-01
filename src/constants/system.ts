@@ -1,11 +1,12 @@
 // Critical system constants extracted to break circular dependencies
 
-import { feature } from 'bun:bundle'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { getAPIProvider } from '../utils/model/providers.js'
 import { getWorkload } from '../utils/workloadContext.js'
+
+export const CCH_PLACEHOLDER = 'cch=00000'
 
 const DEFAULT_PREFIX = `You are Claude Code, Anthropic's official CLI for Claude.`
 const AGENT_SDK_CLAUDE_CODE_PRESET_PREFIX = `You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK.`
@@ -61,14 +62,9 @@ function isAttributionHeaderEnabled(): boolean {
  * Returns a header string with cc_version (including fingerprint) and cc_entrypoint.
  * Enabled by default, can be disabled via env var or GrowthBook killswitch.
  *
- * When NATIVE_CLIENT_ATTESTATION is enabled, includes a `cch=00000` placeholder.
- * Before the request is sent, Bun's native HTTP stack finds this placeholder
- * in the request body and overwrites the zeros with a computed hash. The
- * server verifies this token to confirm the request came from a real Claude
- * Code client. See bun-anthropic/src/http/Attestation.zig for implementation.
- *
- * We use a placeholder (instead of injecting from Zig) because same-length
- * replacement avoids Content-Length changes and buffer reallocation.
+ * Includes a `cch=00000` placeholder that is replaced with a computed
+ * xxHash64 attestation token in buildFetch() (src/services/api/client.ts)
+ * before the request is sent.
  */
 export function getAttributionHeader(fingerprint: string): string {
   if (!isAttributionHeaderEnabled()) {
@@ -78,8 +74,13 @@ export function getAttributionHeader(fingerprint: string): string {
   const version = `${MACRO.VERSION}.${fingerprint}`
   const entrypoint = process.env.CLAUDE_CODE_ENTRYPOINT ?? 'unknown'
 
-  // cch=00000 placeholder is overwritten by Bun's HTTP stack with attestation token
-  const cch = feature('NATIVE_CLIENT_ATTESTATION') ? ' cch=00000;' : ''
+  // cch=00000 placeholder — replaced with a computed xxHash64 of the serialized
+  // request body in buildFetch() (src/services/api/client.ts) before the request
+  // is sent. We use a fixed-width placeholder instead of computing the hash here
+  // because the hash must cover the entire JSON body (including this very string),
+  // so we serialize with the placeholder first, hash that, then do a same-length
+  // string replacement to avoid Content-Length changes or buffer reallocation.
+  const cch = ` ${CCH_PLACEHOLDER};`
   // cc_workload: turn-scoped hint so the API can route e.g. cron-initiated
   // requests to a lower QoS pool. Absent = interactive default. Safe re:
   // fingerprint (computed from msg chars + version only, line 78 above) and
