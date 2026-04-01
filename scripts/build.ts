@@ -119,7 +119,13 @@ const outfile = compile
 const buildTime = new Date().toISOString()
 const version = dev ? getDevVersion(pkg.version) : pkg.version
 
-mkdirSync(dirname(outfile), { recursive: true })
+try {
+  mkdirSync(dirname(outfile), { recursive: true })
+} catch (e: unknown) {
+  if ((e as NodeJS.ErrnoException).code !== 'EEXIST') {
+    throw e
+  }
+}
 
 const externals = [
   '@ant/*',
