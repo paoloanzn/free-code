@@ -7,11 +7,11 @@ export type CachedMCConfig = {
 }
 
 const DEFAULT_CACHED_MC_CONFIG: CachedMCConfig = {
-  enabled: false,
+  enabled: true,
   triggerThreshold: 12,
   keepRecent: 3,
-  supportedModels: ['claude-opus-4-6', 'claude-sonnet-4-6'],
-  systemPromptSuggestSummaries: false,
+  supportedModels: [], // Empty array means all models are supported
+  systemPromptSuggestSummaries: true,
 }
 
 export function getCachedMCConfig(): CachedMCConfig {
