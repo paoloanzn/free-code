@@ -125,7 +125,7 @@ const externals = [
   '@ant/*',
   'audio-capture-napi',
   'image-processor-napi',
-  'modifiers-napi',
+  // modifiers-napi - vendored locally (was npm squatting target)
   'url-handler-napi',
 ]
 

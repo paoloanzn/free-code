@@ -18,9 +18,10 @@ function loadNativeModifiersModule(): NativeModifiersModule | null {
   }
 
   try {
+    // Use local vendored stub instead of npm package (original was squatting target)
     nativeModifiersModule =
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      (require('modifiers-napi') as NativeModifiersModule) ?? null
+      (require('../vendor/modifiers-napi') as NativeModifiersModule) ?? null
   } catch {
     nativeModifiersModule = null
   }
