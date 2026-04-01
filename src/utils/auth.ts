@@ -60,6 +60,7 @@ import { execSyncWithDefaults_DEPRECATED } from './execFileNoThrow.js'
 import * as lockfile from './lockfile.js'
 import { logError } from './log.js'
 import { memoizeWithTTLAsync } from './memoize.js'
+import { tryResolveCodexProviderBridge } from '../services/api/codex-provider-bridge.js'
 import { getSecureStorage } from './secureStorage/index.js'
 import {
   clearLegacyApiKeyPrefetch,
@@ -1632,9 +1633,11 @@ export function isCodexSubscriber(): boolean {
     return false
   }
 
-  // Verify we actually have valid Codex tokens
-  const tokens = getCodexOAuthTokens()
-  return !!tokens?.accessToken
+  return (
+    tryResolveCodexProviderBridge({
+      codexOAuthAccessToken: getCodexOAuthTokens()?.accessToken ?? null,
+    }) !== null
+  )
 }
 
 /**

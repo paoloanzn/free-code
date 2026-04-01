@@ -16,6 +16,7 @@
  */
 
 import { getCodexOAuthTokens } from '../../utils/auth.js'
+import type { CodexResponsesBridgeConfig } from './codex-provider-bridge.js'
 
 // ── Available Codex models ──────────────────────────────────────────
 export const CODEX_MODELS = [
@@ -738,15 +739,28 @@ async function translateCodexStreamToAnthropic(
 
 const CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex/responses'
 
+type ResponsesBridgeFetchOptions = {
+  accessToken: string
+  endpoint: string
+  extraHeaders?: Record<string, string>
+  getAccessToken?: () => string
+}
+
 /**
  * Creates a fetch function that intercepts Anthropic API calls and routes them to Codex.
  * @param accessToken - The Codex access token for authentication
  * @returns A fetch function that translates Anthropic requests to Codex format
  */
-export function createCodexFetch(
-  accessToken: string,
-): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
-  const accountId = extractAccountId(accessToken)
+function createResponsesBridgeFetch({
+  accessToken,
+  endpoint,
+  extraHeaders,
+  getAccessToken,
+}: ResponsesBridgeFetchOptions): (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response> {
+  const resolveAccessToken = getAccessToken ?? (() => accessToken)
 
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = input instanceof Request ? input.url : String(input)
@@ -770,23 +784,17 @@ export function createCodexFetch(
       anthropicBody = {}
     }
 
-    // Get current token (may have been refreshed)
-    const tokens = getCodexOAuthTokens()
-    const currentToken = tokens?.accessToken || accessToken
-
     // Translate to Codex format
     const { codexBody, codexModel } = translateToCodexBody(anthropicBody)
 
     // Call Codex API
-    const codexResponse = await globalThis.fetch(CODEX_BASE_URL, {
+    const codexResponse = await globalThis.fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
-        Authorization: `Bearer ${currentToken}`,
-        'chatgpt-account-id': accountId,
-        originator: 'pi',
-        'OpenAI-Beta': 'responses=experimental',
+        Authorization: `Bearer ${resolveAccessToken()}`,
+        ...(extraHeaders ?? {}),
       },
       body: JSON.stringify(codexBody),
     })
@@ -809,4 +817,34 @@ export function createCodexFetch(
     // Translate streaming response
     return translateCodexStreamToAnthropic(codexResponse, codexModel)
   }
+}
+
+export function createCodexFetch(
+  accessToken: string,
+): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
+  const accountId = extractAccountId(accessToken)
+
+  return createResponsesBridgeFetch({
+    accessToken,
+    endpoint: CODEX_BASE_URL,
+    getAccessToken: () => {
+      const tokens = getCodexOAuthTokens()
+      return tokens?.accessToken || accessToken
+    },
+    extraHeaders: {
+      'chatgpt-account-id': accountId,
+      originator: 'pi',
+      'OpenAI-Beta': 'responses=experimental',
+    },
+  })
+}
+
+export function createResponsesFetch(
+  config: CodexResponsesBridgeConfig,
+): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
+  return createResponsesBridgeFetch({
+    accessToken: config.apiKey,
+    endpoint: config.endpoint,
+    extraHeaders: config.headers,
+  })
 }

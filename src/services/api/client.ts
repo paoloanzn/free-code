@@ -13,7 +13,6 @@ import {
   getClaudeAIOAuthTokens,
   getCodexOAuthTokens,
   isClaudeAISubscriber,
-  isCodexSubscriber,
   refreshAndGetAwsCredentials,
   refreshGcpCredentialsIfNeeded,
 } from 'src/utils/auth.js'
@@ -35,7 +34,13 @@ import {
   getVertexRegionForModel,
   isEnvTruthy,
 } from '../../utils/envUtils.js'
-import { createCodexFetch } from './codex-fetch-adapter.js'
+import {
+  resolveCodexProviderBridge,
+} from './codex-provider-bridge.js'
+import {
+  createCodexFetch,
+  createResponsesFetch,
+} from './codex-fetch-adapter.js'
 
 /**
  * Environment variables for different client types:
@@ -305,15 +310,21 @@ export async function getAnthropicClient({
     return new AnthropicVertex(vertexArgs) as unknown as Anthropic
   }
 
-  // ── Codex (OpenAI) provider via fetch adapter ─────────────────────
-  if (isCodexSubscriber()) {
+  if (getAPIProvider() === 'openai') {
     const codexTokens = getCodexOAuthTokens()
-    if (codexTokens?.accessToken) {
-      const codexFetch = createCodexFetch(codexTokens.accessToken)
+    const bridge = resolveCodexProviderBridge({
+      codexOAuthAccessToken: codexTokens?.accessToken ?? null,
+    })
+
+    if (bridge) {
+      const bridgeFetch =
+        bridge.kind === 'chatgpt'
+          ? createCodexFetch(bridge.accessToken)
+          : createResponsesFetch(bridge)
       const clientConfig: ConstructorParameters<typeof Anthropic>[0] = {
-        apiKey: 'codex-placeholder', // SDK requires a key but the fetch adapter handles auth
+        apiKey: 'codex-placeholder',
         ...ARGS,
-        fetch: codexFetch as unknown as typeof globalThis.fetch,
+        fetch: bridgeFetch as unknown as typeof globalThis.fetch,
         ...(isDebugToStdErr() && { logger: createStderrLogger() }),
       }
       return new Anthropic(clientConfig)
