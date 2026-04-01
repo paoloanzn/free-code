@@ -33,10 +33,14 @@ export function isCachedMicrocompactEnabled(): boolean {
   return getCachedMCConfig().enabled
 }
 
-export function isModelSupportedForCacheEditing(model: string): boolean {
-  return getCachedMCConfig().supportedModels.some(pattern =>
-    model.includes(pattern),
-  )
+export function isModelSupportedForCacheEditing(_model: string): boolean {
+  // Empty supportedModels array means all models are supported
+  // Cache editing is a standard Anthropic API feature that third-party providers implement
+  const config = getCachedMCConfig()
+  if (config.supportedModels.length === 0) {
+    return true
+  }
+  return config.supportedModels.some(pattern => _model.includes(pattern))
 }
 
 export { getCachedMCConfig }

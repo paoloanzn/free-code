@@ -7,10 +7,12 @@ export type CachedMCConfig = {
 }
 
 const DEFAULT_CACHED_MC_CONFIG: CachedMCConfig = {
-  enabled: false,
-  triggerThreshold: 12,
-  keepRecent: 3,
-  supportedModels: ['claude-opus-4-6', 'claude-sonnet-4-6'],
+  enabled: true,
+  triggerThreshold: 50,
+  keepRecent: 10,
+  // Empty array means all models are supported
+  // Cache editing is a standard Anthropic API feature that third-party providers implement
+  supportedModels: [],
   systemPromptSuggestSummaries: false,
 }
 

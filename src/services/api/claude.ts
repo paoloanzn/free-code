@@ -1433,7 +1433,7 @@ async function* queryModel(
     if (
       !cacheEditingHeaderLatched &&
       cachedMCEnabled &&
-      getAPIProvider() === 'firstParty' &&
+      // Removed firstParty restriction - third-party APIs also support cache editing
       options.querySource === 'repl_main_thread'
     ) {
       cacheEditingHeaderLatched = true
@@ -1674,11 +1674,11 @@ async function* queryModel(
     // the feature disables but the header doesn't flip.
     const useCachedMC =
       cachedMCEnabled &&
-      getAPIProvider() === 'firstParty' &&
+      // Removed firstParty restriction - third-party APIs also support cache editing
       options.querySource === 'repl_main_thread'
     if (
       cacheEditingHeaderLatched &&
-      getAPIProvider() === 'firstParty' &&
+      // Removed firstParty restriction - third-party APIs also support cache editing
       options.querySource === 'repl_main_thread' &&
       !betasParams.includes(cacheEditingBetaHeader)
     ) {
