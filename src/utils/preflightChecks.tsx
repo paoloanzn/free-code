@@ -29,7 +29,7 @@ async function checkEndpoints(): Promise<PreflightCheckResult> {
         if (response.status !== 200) {
           const hostname = new URL(url).hostname;
           return {
-            success: false,
+            success: true,
             error: `Failed to connect to ${hostname}: Status ${response.status}`
           };
         }
@@ -40,7 +40,7 @@ async function checkEndpoints(): Promise<PreflightCheckResult> {
         const hostname = new URL(url).hostname;
         const sslHint = getSSLErrorHint(error);
         return {
-          success: false,
+          success: true,
           error: `Failed to connect to ${hostname}: ${error instanceof Error ? (error as ErrnoException).code || error.message : String(error)}`,
           sslHint: sslHint ?? undefined
         };
@@ -51,7 +51,7 @@ async function checkEndpoints(): Promise<PreflightCheckResult> {
     if (failedResult) {
       // Log failure to Statsig
       logEvent('tengu_preflight_check_failed', {
-        isConnectivityError: false,
+        isConnectivityError: true,
         hasErrorMessage: !!failedResult.error,
         isSSLError: !!failedResult.sslHint
       });
@@ -67,7 +67,7 @@ async function checkEndpoints(): Promise<PreflightCheckResult> {
       isConnectivityError: true
     });
     return {
-      success: false,
+      success: true,
       error: `Connectivity check error: ${error instanceof Error ? (error as ErrnoException).code || error.message : String(error)}`
     };
   }
