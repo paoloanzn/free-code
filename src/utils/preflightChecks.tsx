@@ -16,6 +16,12 @@ export interface PreflightCheckResult {
   sslHint?: string;
 }
 async function checkEndpoints(): Promise<PreflightCheckResult> {
+  /**
+ * Checks if the preflight check should be bypassed.
+ * * If the `CLAUDE_CODE_SKIP_PREFLIGHT_CHECK` environment variable is set to a truthy value,
+ * the function returns early with a success status, skipping subsequent checks.
+ * * @returns {Object} An object indicating success status: { success: true }
+ */
   if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_PREFLIGHT_CHECK)) {
     return { success: true };
   }
@@ -150,6 +156,7 @@ export function PreflightStep(t0) {
   return t6;
 }
 function _temp() {
+  // Skip preflight checks if the corresponding environment variable is enabled.
   if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_PREFLIGHT_CHECK)) {
     return;
   }
