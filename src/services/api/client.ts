@@ -320,6 +320,22 @@ export async function getAnthropicClient({
     }
   }
 
+  // ── vLLM (OpenAI-compatible) provider via fetch adapter ───────────
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_VLLM)) {
+    const vllmApiKey = process.env.VLLM_API_KEY || process.env.OPENAI_API_KEY || ''
+    const vllmBaseUrl = process.env.VLLM_BASE_URL || 'http://localhost:8000'
+    const { createVLLMFetch } = await import('./vllm-fetch-adapter.js')
+    const vllmFetch = createVLLMFetch(vllmApiKey, vllmBaseUrl)
+    const clientConfig: ConstructorParameters<typeof Anthropic>[0] = {
+      apiKey: vllmApiKey || 'vllm-placeholder',
+      baseURL: `${vllmBaseUrl.replace(/\/+$/, '')}/v1`,
+      ...ARGS,
+      fetch: vllmFetch as unknown as typeof globalThis.fetch,
+      ...(isDebugToStdErr() && { logger: createStderrLogger() }),
+    }
+    return new Anthropic(clientConfig)
+  }
+
   // Determine authentication method based on available tokens
   const clientConfig: ConstructorParameters<typeof Anthropic>[0] = {
     apiKey: isClaudeAISubscriber() ? null : apiKey || getAnthropicApiKey(),
