@@ -1637,6 +1637,14 @@ export function isCodexSubscriber(): boolean {
   return !!tokens?.accessToken
 }
 
+export function getVLLMApiKey(): string | undefined {
+  return process.env.VLLM_API_KEY || process.env.OPENAI_API_KEY
+}
+
+export function isVLLMSubscriber(): boolean {
+  return getAPIProvider() === 'vllm' && !!getVLLMApiKey()
+}
+
 /**
  * Check if the current OAuth token has the user:profile scope.
  *
