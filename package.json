@@ -18,7 +18,7 @@
     "build:dev:full": "bun run ./scripts/build.ts --dev --feature-set=dev-full",
     "compile": "bun run ./scripts/build.ts --compile",
     "dev": "bun run ./src/entrypoints/cli.tsx",
-    "update:sorux": "powershell -ExecutionPolicy Bypass -File ./scripts/update-sorux.ps1 -Build"
+    "update:sorux": "bun run ./scripts/update-sorux.ts --build"
   },
   "dependencies": {
     "@alcalzone/ansi-tokenize": "^0.3.0",
