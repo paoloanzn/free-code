@@ -368,11 +368,13 @@ export function renderModelSetting(setting: ModelName | ModelAlias): string {
  */
 export function getPublicModelDisplayName(model: ModelName): string | null {
   if (model.includes('gpt-') || model.includes('codex')) {
+    if (model === 'gpt-5.3-codex') return 'Codex 5.3'
     if (model === 'gpt-5.2-codex') return 'Codex 5.2'
     if (model === 'gpt-5.1-codex') return 'Codex 5.1'
     if (model === 'gpt-5.1-codex-mini') return 'Codex 5.1 Mini'
     if (model === 'gpt-5.1-codex-max') return 'Codex 5.1 Max'
     if (model === 'gpt-5.4') return 'GPT 5.4'
+    if (model === 'gpt-5.4-mini') return 'GPT 5.4 Mini'
     if (model === 'gpt-5.2') return 'GPT 5.2'
     return model
   }

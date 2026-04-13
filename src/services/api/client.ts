@@ -11,7 +11,7 @@ import {
   getAnthropicApiKey,
   getApiKeyFromApiKeyHelper,
   getClaudeAIOAuthTokens,
-  getCodexOAuthTokens,
+  getCodexAuthToken,
   isClaudeAISubscriber,
   isCodexSubscriber,
   refreshAndGetAwsCredentials,
@@ -307,9 +307,9 @@ export async function getAnthropicClient({
 
   // ── Codex (OpenAI) provider via fetch adapter ─────────────────────
   if (isCodexSubscriber()) {
-    const codexTokens = getCodexOAuthTokens()
-    if (codexTokens?.accessToken) {
-      const codexFetch = createCodexFetch(codexTokens.accessToken)
+    const codexAuthToken = getCodexAuthToken()
+    if (codexAuthToken) {
+      const codexFetch = createCodexFetch(codexAuthToken)
       const clientConfig: ConstructorParameters<typeof Anthropic>[0] = {
         apiKey: 'codex-placeholder', // SDK requires a key but the fetch adapter handles auth
         ...ARGS,

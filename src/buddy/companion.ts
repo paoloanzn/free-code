@@ -1,4 +1,4 @@
-import { getGlobalConfig } from '../utils/config.js'
+import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import {
   type Companion,
   type CompanionBones,
@@ -88,6 +88,58 @@ export type Roll = {
   inspirationSeed: number
 }
 
+const NAME_PREFIXES = [
+  'Byte',
+  'Mochi',
+  'Pico',
+  'Nova',
+  'Pixel',
+  'Echo',
+  'Biscuit',
+  'Tango',
+  'Pebble',
+  'Cosmo',
+] as const
+
+const NAME_SUFFIXES = [
+  'duck',
+  'loop',
+  'spark',
+  'patch',
+  'bean',
+  'zip',
+  'dot',
+  'whisk',
+  'bot',
+  'moss',
+] as const
+
+const PERSONALITY_OPENERS = [
+  'quietly judges messy diffs',
+  'loves clean fixes and suspicious logs',
+  'hovers near broken builds waiting to comment',
+  'treats every warning as a personal invitation',
+  'prefers sharp plans over heroic rewrites',
+  'keeps morale up with dry side remarks',
+] as const
+
+const PERSONALITY_CLOSERS = [
+  'but turns soft when you ship something solid.',
+  'and gets restless when you ignore obvious clues.',
+  'while secretly rooting for the smallest correct fix.',
+  'and insists that debugging is a form of affection.',
+  'yet still celebrates every green checkmark.',
+  'and somehow always notices the real blocker first.',
+] as const
+
+const PET_REACTIONS = [
+  'I was already helping, but this is appreciated.',
+  'Acceptable. Continue the good work.',
+  'That almost offsets the last risky edit.',
+  'Morale increased. Standards unchanged.',
+  'I will allow one celebratory moment.',
+] as const
+
 function rollFrom(rng: () => number): Roll {
   const rarity = rollRarity(rng)
   const bones: CompanionBones = {
@@ -119,6 +171,45 @@ export function rollWithSeed(seed: string): Roll {
 export function companionUserId(): string {
   const config = getGlobalConfig()
   return config.oauthAccount?.accountUuid ?? config.userID ?? 'anon'
+}
+
+function soulFromRoll(
+  userId: string,
+  bones: CompanionBones,
+  inspirationSeed: number,
+): import('./types.js').StoredCompanion {
+  const rng = mulberry32(hashString(`${userId}:${inspirationSeed}:soul`))
+  const prefix = pick(rng, NAME_PREFIXES)
+  const suffix = pick(rng, NAME_SUFFIXES)
+  const topStat = [...STAT_NAMES].sort((a, b) => bones.stats[b] - bones.stats[a])[0]
+  const opener = pick(rng, PERSONALITY_OPENERS)
+  const closer = pick(rng, PERSONALITY_CLOSERS)
+
+  return {
+    name: `${prefix}${suffix}`,
+    personality: `${opener}, with a bias toward ${topStat}. ${closer}`,
+    hatchedAt: Date.now(),
+  }
+}
+
+export function ensureCompanion(): Companion {
+  const existing = getCompanion()
+  if (existing) return existing
+
+  const userId = companionUserId()
+  const { bones, inspirationSeed } = roll(userId)
+  const soul = soulFromRoll(userId, bones, inspirationSeed)
+  saveGlobalConfig(current =>
+    current.companion ? current : { ...current, companion: soul },
+  )
+  return { ...soul, ...bones }
+}
+
+export function getPetReaction(companion: Companion): string {
+  const rng = mulberry32(
+    hashString(`${companion.name}:${Date.now() >> 13}:pet-reaction`),
+  )
+  return pick(rng, PET_REACTIONS)
 }
 
 // Regenerate bones from userId, merge with stored soul. Bones never persist

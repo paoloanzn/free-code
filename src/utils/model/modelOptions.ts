@@ -25,6 +25,7 @@ import {
   getDefaultHaikuModel,
   getDefaultMainLoopModelSetting,
   getMarketingNameForModel,
+  modelDisplayString,
   getUserSpecifiedModelSetting,
   isOpus1mMergeEnabled,
   getOpus46PricingSuffix,
@@ -210,6 +211,15 @@ function getHaikuOption(): ModelOption {
 }
 
 // OpenAI Codex model options
+function getGpt52Option(): ModelOption {
+  return {
+    value: 'gpt-5.2',
+    label: 'GPT-5.2',
+    description: 'GPT-5.2 - Balanced general-purpose GPT model',
+    descriptionForModel: 'GPT-5.2 - balanced general-purpose reasoning and coding',
+  }
+}
+
 function getGpt54Option(): ModelOption {
   return {
     value: 'gpt-5.4',
@@ -228,12 +238,48 @@ function getGpt53CodexOption(): ModelOption {
   }
 }
 
+function getGpt52CodexOption(): ModelOption {
+  return {
+    value: 'gpt-5.2-codex',
+    label: 'GPT-5.2 Codex',
+    description: 'GPT-5.2 Codex - Frontier agentic coding model',
+    descriptionForModel: 'GPT-5.2 Codex - frontier agentic coding model',
+  }
+}
+
+function getGpt51CodexOption(): ModelOption {
+  return {
+    value: 'gpt-5.1-codex',
+    label: 'GPT-5.1 Codex',
+    description: 'GPT-5.1 Codex - Codex coding model',
+    descriptionForModel: 'GPT-5.1 Codex - coding-focused Codex model',
+  }
+}
+
 function getGpt54MiniOption(): ModelOption {
   return {
     value: 'gpt-5.4-mini',
     label: 'GPT-5.4 Mini',
     description: 'GPT-5.4 Mini · Fast and efficient for simple tasks',
     descriptionForModel: 'GPT-5.4 Mini - fast and efficient for simple coding tasks',
+  }
+}
+
+function getGpt51CodexMiniOption(): ModelOption {
+  return {
+    value: 'gpt-5.1-codex-mini',
+    label: 'GPT-5.1 Codex Mini',
+    description: 'GPT-5.1 Codex Mini - Fast Codex model for lighter tasks',
+    descriptionForModel: 'GPT-5.1 Codex Mini - fast Codex model for lighter tasks',
+  }
+}
+
+function getGpt51CodexMaxOption(): ModelOption {
+  return {
+    value: 'gpt-5.1-codex-max',
+    label: 'GPT-5.1 Codex Max',
+    description: 'GPT-5.1 Codex Max - Highest-capability Codex model',
+    descriptionForModel: 'GPT-5.1 Codex Max - highest-capability Codex model',
   }
 }
 
@@ -321,8 +367,13 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     return [
       getDefaultOptionForUser(),
       getGpt54Option(),
+      getGpt52Option(),
       getGpt53CodexOption(),
+      getGpt52CodexOption(),
       getGpt54MiniOption(),
+      getGpt51CodexOption(),
+      getGpt51CodexMiniOption(),
+      getGpt51CodexMaxOption(),
     ]
   }
 
@@ -533,17 +584,19 @@ export function getModelOptions(fastMode = false): ModelOption[] {
     customModel = initialMainLoopModel
   }
   if (customModel === null || options.some(opt => opt.value === customModel)) {
-    return filterModelOptionsByAllowlist(options)
+    return filterModelOptionsByAllowlist(appendConfiguredAvailableModels(options))
   } else if (customModel === 'opusplan') {
-    return filterModelOptionsByAllowlist([...options, getOpusPlanOption()])
+    return filterModelOptionsByAllowlist(
+      appendConfiguredAvailableModels([...options, getOpusPlanOption()]),
+    )
   } else if (customModel === 'opus' && getAPIProvider() === 'firstParty') {
     return filterModelOptionsByAllowlist([
-      ...options,
+      ...appendConfiguredAvailableModels(options),
       getMaxOpusOption(fastMode),
     ])
   } else if (customModel === 'opus[1m]' && getAPIProvider() === 'firstParty') {
     return filterModelOptionsByAllowlist([
-      ...options,
+      ...appendConfiguredAvailableModels(options),
       getMergedOpus1MOption(fastMode),
     ])
   } else {
@@ -559,8 +612,29 @@ export function getModelOptions(fastMode = false): ModelOption[] {
         description: 'Custom model',
       })
     }
-    return filterModelOptionsByAllowlist(options)
+    return filterModelOptionsByAllowlist(appendConfiguredAvailableModels(options))
   }
+}
+
+function appendConfiguredAvailableModels(options: ModelOption[]): ModelOption[] {
+  const settings = getSettings_DEPRECATED() || {}
+  const configured = settings.availableModels
+  if (!configured || configured.length === 0) {
+    return options
+  }
+
+  const merged = [...options]
+  for (const model of configured) {
+    if (!model || merged.some(existing => existing.value === model)) {
+      continue
+    }
+    merged.push({
+      value: model,
+      label: modelDisplayString(model),
+      description: 'Configured model',
+    })
+  }
+  return merged
 }
 
 /**

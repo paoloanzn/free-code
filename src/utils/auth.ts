@@ -102,6 +102,12 @@ export function isAnthropicAuthEnabled(): boolean {
   // --bare: API-key-only, never OAuth.
   if (isBareMode()) return false
 
+  // OpenAI-compatible provider with an explicit API key should not trigger
+  // Anthropic login/onboarding flows.
+  if (getAPIProvider() === 'openai' && !!getCodexApiKey()) {
+    return false
+  }
+
   // `claude ssh` remote: ANTHROPIC_UNIX_SOCKET tunnels API calls through a
   // local auth-injecting proxy. The launcher sets CLAUDE_CODE_OAUTH_TOKEN as a
   // placeholder iff the local side is a subscriber (so the remote includes the
@@ -1366,6 +1372,18 @@ export function clearCodexOAuthTokens(): void {
   })
 }
 
+export function getCodexApiKey(): string | null {
+  return (
+    process.env.OPENAI_API_KEY ||
+    process.env.CLAUDE_CODE_OPENAI_API_KEY ||
+    null
+  )
+}
+
+export function getCodexAuthToken(): string | null {
+  return getCodexApiKey() || getCodexOAuthTokens()?.accessToken || null
+}
+
 
 let lastCredentialsMtimeMs = 0
 
@@ -1632,9 +1650,7 @@ export function isCodexSubscriber(): boolean {
     return false
   }
 
-  // Verify we actually have valid Codex tokens
-  const tokens = getCodexOAuthTokens()
-  return !!tokens?.accessToken
+  return !!getCodexAuthToken()
 }
 
 /**

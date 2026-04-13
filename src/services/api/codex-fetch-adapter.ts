@@ -15,7 +15,7 @@
  * Endpoint: https://chatgpt.com/backend-api/codex/responses
  */
 
-import { getCodexOAuthTokens } from '../../utils/auth.js'
+import { getCodexApiKey, getCodexAuthToken } from '../../utils/auth.js'
 
 // ── Available Codex models ──────────────────────────────────────────
 export const CODEX_MODELS = [
@@ -736,7 +736,25 @@ async function translateCodexStreamToAnthropic(
 
 // ── Main fetch interceptor ──────────────────────────────────────────
 
-const CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex/responses'
+const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex/responses'
+
+function getCodexBaseUrl(): string {
+  const configured =
+    process.env.OPENAI_BASE_URL ||
+    process.env.CLAUDE_CODE_OPENAI_BASE_URL ||
+    process.env.CODEX_BASE_URL
+
+  if (!configured) {
+    return DEFAULT_CODEX_BASE_URL
+  }
+
+  const trimmed = configured.replace(/\/+$/, '')
+  return trimmed.endsWith('/responses') ? trimmed : `${trimmed}/responses`
+}
+
+function isJwtLikeToken(token: string): boolean {
+  return token.split('.').length === 3
+}
 
 /**
  * Creates a fetch function that intercepts Anthropic API calls and routes them to Codex.
@@ -746,8 +764,6 @@ const CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex/responses'
 export function createCodexFetch(
   accessToken: string,
 ): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
-  const accountId = extractAccountId(accessToken)
-
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = input instanceof Request ? input.url : String(input)
 
@@ -771,25 +787,51 @@ export function createCodexFetch(
     }
 
     // Get current token (may have been refreshed)
-    const tokens = getCodexOAuthTokens()
-    const currentToken = tokens?.accessToken || accessToken
+    const currentToken = getCodexAuthToken() || accessToken
+    const usingApiKey = !!getCodexApiKey()
+    const shouldAttachOpenAIOAuthHeaders = !usingApiKey && isJwtLikeToken(currentToken)
+    const accountId = shouldAttachOpenAIOAuthHeaders
+      ? extractAccountId(currentToken)
+      : null
 
     // Translate to Codex format
     const { codexBody, codexModel } = translateToCodexBody(anthropicBody)
+    const targetUrl = getCodexBaseUrl()
+    if (process.env.SORUX_DEBUG === '1') {
+      console.error(
+        '[codex-fetch]',
+        JSON.stringify({
+          requestUrl: url,
+          targetUrl,
+          anthropicModel: anthropicBody.model,
+          codexModel,
+          hasTools: Array.isArray(codexBody.tools) ? codexBody.tools.length : 0,
+          stream: codexBody.stream,
+        }),
+      )
+    }
 
     // Call Codex API
-    const codexResponse = await globalThis.fetch(CODEX_BASE_URL, {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      Authorization: `Bearer ${currentToken}`,
+    }
+
+    if (shouldAttachOpenAIOAuthHeaders && accountId) {
+      headers['chatgpt-account-id'] = accountId
+      headers.originator = 'pi'
+      headers['OpenAI-Beta'] = 'responses=experimental'
+    }
+
+    const codexResponse = await globalThis.fetch(targetUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'text/event-stream',
-        Authorization: `Bearer ${currentToken}`,
-        'chatgpt-account-id': accountId,
-        originator: 'pi',
-        'OpenAI-Beta': 'responses=experimental',
-      },
+      headers,
       body: JSON.stringify(codexBody),
     })
+    if (process.env.SORUX_DEBUG === '1') {
+      console.error('[codex-fetch-status]', codexResponse.status, targetUrl)
+    }
 
     if (!codexResponse.ok) {
       const errorText = await codexResponse.text()
