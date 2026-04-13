@@ -436,7 +436,7 @@ export type AppState = DeepImmutable<{
   ultraplanPendingChoice?: { plan: string; sessionId: string; taskId: string }
   // Pre-launch permission dialog. Set by /ultraplan (slash or keyword);
   // cleared by UltraplanLaunchDialog on choice.
-  ultraplanLaunchPending?: { blurb: string }
+  ultraplanLaunchPending?: { blurb: string; profile?: 'fast' | 'deep' | 'max' }
   // Remote-harness side: set via set_permission_mode control_request,
   // pushed to CCR external_metadata.is_ultraplan_mode by onChangeAppState.
   isUltraplanMode?: boolean

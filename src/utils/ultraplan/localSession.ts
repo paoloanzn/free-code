@@ -23,6 +23,10 @@ import {
   buildUltraplanSystemPrompt,
   buildUltraplanUserPrompt,
 } from './plannerPrompt.js'
+import {
+  getUltraplanProfileConfig,
+  type UltraplanProfile,
+} from './profile.js'
 import { launchUltraplanTerminal } from './terminalLauncher.js'
 import {
   buildWorkspaceSnapshotMarkdown,
@@ -33,20 +37,30 @@ const POLL_MS = 1200
 
 export async function startLocalUltraplan(opts: {
   topic: string
+  profile?: UltraplanProfile
   seedPlan?: string
   getAppState: () => AppState
   setAppState: SetAppState
   onSessionReady?: (message: string) => void
 }): Promise<string> {
-  const { topic, seedPlan, getAppState, setAppState, onSessionReady } = opts
+  const {
+    topic,
+    profile = 'deep',
+    seedPlan,
+    getAppState,
+    setAppState,
+    onSessionReady,
+  } = opts
   const paths = await createUltraplanRunPaths()
   const taskId = createUltraplanTask(setAppState, topic, paths.dir)
+  const profileConfig = getUltraplanProfileConfig(profile)
 
   await writeUltraplanRequest(paths, {
     id: paths.id,
     topic,
     cwd: process.cwd(),
     createdAt: Date.now(),
+    profile,
     sourceSessionId: getSessionId(),
     ...(seedPlan ? { seedPlan } : {}),
   })
@@ -64,13 +78,17 @@ export async function startLocalUltraplan(opts: {
     workspaceSnapshotMarkdown,
     'utf8',
   )
-  await writeFile(paths.systemPromptPath, buildUltraplanSystemPrompt(), 'utf8')
   await writeFile(
-    paths.promptPath,
-    buildUltraplanUserPrompt(topic, workspaceSnapshotMarkdown, seedPlan),
+    paths.systemPromptPath,
+    buildUltraplanSystemPrompt(profile),
     'utf8',
   )
-  await writePlannerScript(paths)
+  await writeFile(
+    paths.promptPath,
+    buildUltraplanUserPrompt(topic, workspaceSnapshotMarkdown, profile, seedPlan),
+    'utf8',
+  )
+  await writePlannerScript(paths, profile)
 
   const launched = await launchUltraplanTerminal(paths.scriptPath)
   await writeUltraplanSummary(paths, {
@@ -93,10 +111,10 @@ export async function startLocalUltraplan(opts: {
   }))
   markUltraplanTask(taskId, setAppState, 'running', 'Planner terminal launched')
   onSessionReady?.(
-    `Ultraplan started in a new local terminal.\nRun dir: ${paths.dir}`,
+    `Ultraplan (${profileConfig.name}) started in a new local terminal.\nRun dir: ${paths.dir}`,
   )
   void pollLocalUltraplan(paths, taskId, getAppState, setAppState)
-  return 'ultraplan\nLaunching local planner in a new terminal...'
+  return `ultraplan\nLaunching ${profileConfig.name} local planner in a new terminal...`
 }
 
 export async function stopLocalUltraplan(
@@ -243,7 +261,10 @@ async function pollLocalUltraplan(
   }
 }
 
-async function writePlannerScript(paths: UltraplanRunPaths): Promise<void> {
+async function writePlannerScript(
+  paths: UltraplanRunPaths,
+  profile: UltraplanProfile,
+): Promise<void> {
   if (process.platform !== 'win32') {
     await writeFile(
       paths.scriptPath,
@@ -256,6 +277,7 @@ async function writePlannerScript(paths: UltraplanRunPaths): Promise<void> {
   const q = (value: string) => `'${value.replace(/'/g, "''")}'`
   const cliPath = process.execPath
   const model = process.env.ANTHROPIC_MODEL || ''
+  const profileConfig = getUltraplanProfileConfig(profile)
   const script = [
     '$ErrorActionPreference = "Stop"',
     `$runDir = ${q(paths.dir)}`,
@@ -270,7 +292,7 @@ async function writePlannerScript(paths: UltraplanRunPaths): Promise<void> {
     `$cwd = ${q(process.cwd())}`,
     '$prompt = Get-Content -LiteralPath $promptPath -Raw',
     'Set-Location -LiteralPath $cwd',
-    `@{ status = 'running'; updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); message = 'Planner is reading the repo' } | ConvertTo-Json | Set-Content -LiteralPath $statusPath -Encoding utf8`,
+    `@{ status = 'running'; updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); message = 'Planner is reading the repo (${profileConfig.name})' } | ConvertTo-Json | Set-Content -LiteralPath $statusPath -Encoding utf8`,
     'try {',
     '  $arguments = @(',
     "    '-p',",
@@ -278,7 +300,7 @@ async function writePlannerScript(paths: UltraplanRunPaths): Promise<void> {
     "    '--output-format','text',",
     "    '--allowedTools','Read,Glob,Grep',",
     "    '--append-system-prompt-file',$systemPromptPath,",
-    "    '--max-turns','8'",
+    `    '--max-turns','${profileConfig.maxTurns}'`,
     '  )',
     ...(model ? [`  $arguments += @('--model', ${q(model)})`] : []),
     '  $arguments += $prompt',
@@ -288,8 +310,8 @@ async function writePlannerScript(paths: UltraplanRunPaths): Promise<void> {
     '  if (-not (Test-Path -LiteralPath $planPath)) { throw "planner did not create plan.md" }',
     '  $plan = (Get-Content -LiteralPath $planPath -Raw).Trim()',
     '  if ([string]::IsNullOrWhiteSpace($plan)) { throw "planner returned empty output" }',
-    `  @{ status = 'completed'; updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); message = 'Plan completed' } | ConvertTo-Json | Set-Content -LiteralPath $statusPath -Encoding utf8`,
-    `  @{ completedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); launcher = 'powershell'; commandPreview = 'cli --print ultraplan' } | ConvertTo-Json | Set-Content -LiteralPath $summaryPath -Encoding utf8`,
+    `  @{ status = 'completed'; updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); message = 'Plan completed (${profileConfig.name})' } | ConvertTo-Json | Set-Content -LiteralPath $statusPath -Encoding utf8`,
+    `  @{ completedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); launcher = 'powershell'; commandPreview = 'cli --print ultraplan --${profileConfig.name}' } | ConvertTo-Json | Set-Content -LiteralPath $summaryPath -Encoding utf8`,
     '} catch {',
     '  $message = $_.Exception.Message',
     `  @{ status = 'failed'; updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); message = $message } | ConvertTo-Json | Set-Content -LiteralPath $statusPath -Encoding utf8`,

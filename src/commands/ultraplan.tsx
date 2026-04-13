@@ -3,15 +3,22 @@ import { DIAMOND_OPEN } from '../constants/figures.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { LocalJSXCommandCall } from '../types/command.js'
 import {
+  parseUltraplanArgs,
+  type UltraplanProfile,
+} from '../utils/ultraplan/profile.js'
+import {
   startLocalUltraplan,
   stopLocalUltraplan,
 } from '../utils/ultraplan/localSession.js'
 
-function buildLaunchMessage(disconnectedBridge?: boolean): string {
+function buildLaunchMessage(
+  profile: UltraplanProfile,
+  disconnectedBridge?: boolean,
+): string {
   const prefix = disconnectedBridge
     ? 'Remote control was disconnected first. '
     : ''
-  return `${DIAMOND_OPEN} ultraplan\n${prefix}Starting a local planner in a new terminal...`
+  return `${DIAMOND_OPEN} ultraplan\n${prefix}Starting a ${profile} local planner in a new terminal...`
 }
 
 function buildAlreadyActiveMessage(localRef: string | undefined): string {
@@ -22,6 +29,7 @@ function buildAlreadyActiveMessage(localRef: string | undefined): string {
 
 export async function launchUltraplan(opts: {
   blurb: string
+  profile?: UltraplanProfile
   seedPlan?: string
   getAppState: () => AppState
   setAppState: (f: (prev: AppState) => AppState) => void
@@ -31,6 +39,7 @@ export async function launchUltraplan(opts: {
 }): Promise<string> {
   const {
     blurb,
+    profile = 'deep',
     seedPlan,
     getAppState,
     setAppState,
@@ -45,11 +54,13 @@ export async function launchUltraplan(opts: {
 
   if (!blurb && !seedPlan) {
     return [
-      'Usage: /ultraplan <prompt>, or include "ultraplan" in your prompt.',
+      'Usage: /ultraplan [--fast|--deep|--max] <prompt>, or include "ultraplan" in your prompt.',
       '',
       'This launches a new local terminal and runs a planning-only session.',
       'The planner inspects the repo, writes a deep plan locally, and then lets',
       'you insert that plan back into the current conversation.',
+      '',
+      'Profiles: --fast (quick), --deep (default), --max (most thorough).',
     ].join('\n')
   }
 
@@ -60,6 +71,7 @@ export async function launchUltraplan(opts: {
 
   void startLocalUltraplan({
     topic: blurb || 'Refine the existing plan',
+    profile,
     seedPlan,
     getAppState,
     setAppState,
@@ -73,7 +85,7 @@ export async function launchUltraplan(opts: {
     console.error(error)
   })
 
-  return buildLaunchMessage(disconnectedBridge)
+  return buildLaunchMessage(profile, disconnectedBridge)
 }
 
 export async function stopUltraplan(
@@ -85,11 +97,13 @@ export async function stopUltraplan(
 }
 
 const call: LocalJSXCommandCall = async (onDone, context, args) => {
-  const blurb = args.trim()
+  const parsed = parseUltraplanArgs(args)
+  const blurb = parsed.blurb
 
   if (!blurb) {
     const msg = await launchUltraplan({
       blurb,
+      profile: parsed.profile,
       getAppState: context.getAppState,
       setAppState: context.setAppState,
       signal: context.abortController.signal,
@@ -107,7 +121,7 @@ const call: LocalJSXCommandCall = async (onDone, context, args) => {
 
   context.setAppState(prev => ({
     ...prev,
-    ultraplanLaunchPending: { blurb },
+    ultraplanLaunchPending: { blurb, profile: parsed.profile },
   }))
   onDone(undefined, { display: 'skip' })
   return null
@@ -117,8 +131,8 @@ export default {
   type: 'local-jsx',
   name: 'ultraplan',
   description:
-    '~5-15 min · Launch a local planning session in a new terminal and bring the resulting plan back here',
-  argumentHint: '<prompt>',
+    '~5-15 min local planning session in a new terminal that returns a plan here',
+  argumentHint: '[--fast|--deep|--max] <prompt>',
   isEnabled: () => true,
   load: () => Promise.resolve({ call }),
 } satisfies Command

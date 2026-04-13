@@ -4855,6 +4855,7 @@ export function REPL({
 
                 {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
             const blurb = ultraplanLaunchPending.blurb;
+            const profile = ultraplanLaunchPending.profile ?? 'deep';
             setAppState(prev => prev.ultraplanLaunchPending ? {
               ...prev,
               ultraplanLaunchPending: undefined
@@ -4863,7 +4864,7 @@ export function REPL({
             // Command's onDone used display:'skip', so add the
             // echo here — gives immediate feedback before the
             // ~5s teleportToRemote resolves.
-            setMessages(prev => [...prev, createCommandInputMessage(formatCommandInputTags('ultraplan', blurb))]);
+            setMessages(prev => [...prev, createCommandInputMessage(formatCommandInputTags('ultraplan', profile === 'deep' ? blurb : `--${profile} ${blurb}`.trim()))]);
             const appendStdout = (msg: string) => setMessages(prev => [...prev, createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${escapeXml(msg)}</${LOCAL_COMMAND_STDOUT_TAG}>`)]);
             // Defer the second message if a query is mid-turn
             // so it lands after the assistant reply, not
@@ -4885,6 +4886,7 @@ export function REPL({
             };
             void launchUltraplan({
               blurb,
+              profile,
               getAppState: () => store.getState(),
               setAppState,
               signal: createAbortController().signal,

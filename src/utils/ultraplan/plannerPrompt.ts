@@ -1,8 +1,18 @@
-export function buildUltraplanSystemPrompt(): string {
+import {
+  getUltraplanProfileConfig,
+  type UltraplanProfile,
+} from './profile.js'
+
+export function buildUltraplanSystemPrompt(
+  profile: UltraplanProfile = 'deep',
+): string {
+  const config = getUltraplanProfileConfig(profile)
   return [
     'You are running a local ultraplan session inside freecode.',
     'Your job is to produce a deep implementation plan only.',
     'You will receive a generated workspace snapshot. Treat it as a fast local map, then validate important details with read-only repo inspection.',
+    `Selected planning profile: ${config.label} (${config.name}).`,
+    config.planningDirective,
     '',
     'Hard constraints:',
     '- Do not modify files.',
@@ -27,9 +37,14 @@ export function buildUltraplanSystemPrompt(): string {
 export function buildUltraplanUserPrompt(
   topic: string,
   workspaceSnapshot: string,
+  profile: UltraplanProfile = 'deep',
   seedPlan?: string,
 ): string {
+  const config = getUltraplanProfileConfig(profile)
   const parts = [`Create a deep local implementation plan for this task:\n\n${topic}`]
+  parts.push(
+    `Use the ${config.label} planning profile. ${config.planningDirective}`,
+  )
   parts.push(
     [
       'Generated workspace snapshot:',

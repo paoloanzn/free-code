@@ -30,6 +30,7 @@ export type UltraplanRequestFile = {
   topic: string
   cwd: string
   createdAt: number
+  profile?: 'fast' | 'deep' | 'max'
   sourceSessionId?: string
   seedPlan?: string
 }
