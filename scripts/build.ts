@@ -16,6 +16,7 @@ const fullExperimentalFeatures = [
   'AGENT_TRIGGERS_REMOTE',
   'AWAY_SUMMARY',
   'BASH_CLASSIFIER',
+  'BUDDY',
   'BRIDGE_MODE',
   'BUILTIN_EXPLORE_PLAN_AGENTS',
   'CACHED_MICROCOMPACT',
@@ -79,7 +80,7 @@ function getVersionChangelog(): string {
   )
 }
 
-const defaultFeatures = ['VOICE_MODE']
+const defaultFeatures = ['VOICE_MODE', 'BUDDY']
 const featureSet = new Set(defaultFeatures)
 for (let i = 0; i < args.length; i += 1) {
   const arg = args[i]
