@@ -2,7 +2,6 @@ import React from 'react'
 import { Box, Text } from '../ink.js'
 import { Select } from './CustomSelect/index.js'
 import { Dialog } from './design-system/Dialog.js'
-import { CCR_TERMS_URL } from '../commands/ultraplan.js'
 
 type UltraplanLaunchChoice = 'launch' | 'cancel'
 
@@ -21,17 +20,19 @@ export function UltraplanLaunchDialog({ onChoice }: Props): React.ReactNode {
     >
       <Box flexDirection="column" gap={1}>
         <Text>
-          This will start a remote Claude Code session on the web to draft an
-          advanced plan using Opus. The plan typically takes 10–30 minutes.
-          Your terminal stays free while it works.
+          This will open a new local terminal and start a planning-only
+          freecode session for deep repo analysis.
         </Text>
-        <Text dimColor>Terms: {CCR_TERMS_URL}</Text>
+        <Text dimColor>
+          It will write a local plan artifact first. You can then insert that
+          plan back into this conversation.
+        </Text>
       </Box>
       <Select
         options={[
           {
             value: 'launch' as const,
-            label: 'Launch ultraplan',
+            label: 'Launch local ultraplan',
           },
           {
             value: 'cancel' as const,

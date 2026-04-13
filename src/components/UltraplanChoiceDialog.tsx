@@ -5,7 +5,7 @@ import { Dialog } from './design-system/Dialog.js'
 import type { AppState } from '../state/AppStateStore.js'
 import { useSetAppState } from '../state/AppState.js'
 import type { Message } from '../types/message.js'
-import type { RemoteAgentTaskState } from '../tasks/RemoteAgentTask/RemoteAgentTask.js'
+import type { LocalWorkflowTaskState } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import type { FileStateCache } from '../utils/fileStateCache.js'
 import {
   createUserMessage,
@@ -13,10 +13,8 @@ import {
   prepareUserContent,
 } from '../utils/messages.js'
 import { updateTaskState } from '../utils/task/framework.js'
-import { archiveRemoteSession } from '../utils/teleport.js'
-import { logForDebugging } from '../utils/debug.js'
 
-type UltraplanChoice = 'execute' | 'dismiss'
+type UltraplanChoice = 'insert' | 'save' | 'dismiss'
 
 type Props = {
   plan: string
@@ -38,11 +36,11 @@ export function UltraplanChoiceDialog({
 
   const handleChoice = useCallback(
     (choice: UltraplanChoice) => {
-      if (choice === 'execute') {
+      if (choice === 'insert') {
         setMessages(prev => [
           ...prev,
           createSystemMessage(
-            'Ultraplan approved. Executing the following plan:',
+            'Ultraplan finished. Inserting the local plan into this session.',
             'info',
           ),
           createUserMessage({
@@ -51,24 +49,27 @@ export function UltraplanChoiceDialog({
         ])
       }
 
-      // Mark task completed
-      updateTaskState<RemoteAgentTaskState>(taskId, setAppState, t =>
-        t.status !== 'running'
+      updateTaskState<LocalWorkflowTaskState>(taskId, setAppState, t =>
+        t.status === 'completed'
           ? t
-          : { ...t, status: 'completed', endTime: Date.now() },
+          : {
+              ...t,
+              status: 'completed',
+              summary:
+                choice === 'insert'
+                  ? 'Plan inserted into the session'
+                  : choice === 'save'
+                    ? `Plan kept on disk: ${sessionId}`
+                    : 'Plan dismissed',
+              endTime: Date.now(),
+            },
       )
 
-      // Clear ultraplan state
       setAppState(prev => ({
         ...prev,
         ultraplanPendingChoice: undefined,
         ultraplanSessionUrl: undefined,
       }))
-
-      // Archive the remote session
-      void archiveRemoteSession(sessionId).catch(e =>
-        logForDebugging(`ultraplan choice archive failed: ${String(e)}`),
-      )
     },
     [plan, sessionId, taskId, setMessages, setAppState],
   )
@@ -82,6 +83,7 @@ export function UltraplanChoiceDialog({
       onCancel={() => handleChoice('dismiss')}
     >
       <Box flexDirection="column" gap={1}>
+        <Text dimColor>Local artifact: {sessionId}</Text>
         <Box
           flexDirection="column"
           borderStyle="single"
@@ -96,15 +98,19 @@ export function UltraplanChoiceDialog({
       <Select
         options={[
           {
-            value: 'execute' as const,
-            label: 'Execute plan here',
-            description:
-              'Send the plan to Claude for execution in this session',
+            value: 'insert' as const,
+            label: 'Insert plan here',
+            description: 'Send the local plan back into this session',
+          },
+          {
+            value: 'save' as const,
+            label: 'Save only',
+            description: 'Keep the artifact on disk without injecting it',
           },
           {
             value: 'dismiss' as const,
             label: 'Dismiss',
-            description: 'Discard the plan',
+            description: 'Close this dialog and discard the result here',
           },
         ]}
         onChange={(value: UltraplanChoice) => handleChoice(value)}
