@@ -89,9 +89,9 @@ Use Anthropic's first-party API directly.
 | Claude Sonnet 4.6 | `claude-sonnet-4-6` |
 | Claude Haiku 4.5 | `claude-haiku-4-5` |
 
-### OpenAI Codex
+### OpenAI Codex / OpenAI-Compatible Mirrors
 
-Use OpenAI's Codex models for code generation. Requires a Codex subscription.
+Use Codex-compatible `responses` backends, including OpenAI OAuth and third-party mirrors such as SoruxGPT.
 
 | Model | ID |
 |---|---|
@@ -99,9 +99,31 @@ Use OpenAI's Codex models for code generation. Requires a Codex subscription.
 | GPT-5.4 | `gpt-5.4` |
 | GPT-5.4 Mini | `gpt-5.4-mini` |
 
+OpenAI OAuth:
+
 ```bash
 export CLAUDE_CODE_USE_OPENAI=1
 free-code
+```
+
+OpenAI-compatible API key + custom base URL:
+
+```bash
+export CLAUDE_CODE_USE_OPENAI=1
+export OPENAI_API_KEY="your-access-token"
+export OPENAI_BASE_URL="https://your-provider.example.com/codex"
+free-code
+```
+
+`OPENAI_BASE_URL` may be either the provider's Codex base (for example `.../codex`) or the full `.../responses` URL. `free-code` will normalize both.
+
+#### SoruxGPT example
+
+```powershell
+$env:CLAUDE_CODE_USE_OPENAI="1"
+$env:OPENAI_API_KEY="你的 SoruxGPT Access Token"
+$env:OPENAI_BASE_URL="https://chat.soruxgpt.com/codex"
+.\cli.exe --model gpt-5.3-codex
 ```
 
 ### AWS Bedrock
@@ -152,7 +174,7 @@ Supports custom deployment IDs as model names.
 | Provider | Env Variable | Auth Method |
 |---|---|---|
 | Anthropic (default) | -- | `ANTHROPIC_API_KEY` or OAuth |
-| OpenAI Codex | `CLAUDE_CODE_USE_OPENAI=1` | OAuth via OpenAI |
+| OpenAI Codex / Mirrors | `CLAUDE_CODE_USE_OPENAI=1` | OpenAI OAuth or `OPENAI_API_KEY` |
 | AWS Bedrock | `CLAUDE_CODE_USE_BEDROCK=1` | AWS credentials |
 | Google Vertex AI | `CLAUDE_CODE_USE_VERTEX=1` | `gcloud` ADC |
 | Anthropic Foundry | `CLAUDE_CODE_USE_FOUNDRY=1` | `ANTHROPIC_FOUNDRY_API_KEY` |
@@ -236,6 +258,11 @@ bun run dev
 | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Custom Haiku model ID |
 | `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token via env |
 | `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` | API key helper cache TTL |
+| `CLAUDE_CODE_USE_OPENAI` | Enable Codex/OpenAI-compatible provider |
+| `OPENAI_API_KEY` | API key or mirror access token for Codex provider |
+| `OPENAI_BASE_URL` | Custom Codex base URL, e.g. `https://chat.soruxgpt.com/codex` |
+| `CLAUDE_CODE_OPENAI_API_KEY` | Alias for `OPENAI_API_KEY` |
+| `CLAUDE_CODE_OPENAI_BASE_URL` | Alias for `OPENAI_BASE_URL` |
 
 ---
 

@@ -12,6 +12,7 @@ import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js
 import { getAgentDescriptionsTotalTokens, AGENT_DESCRIPTIONS_THRESHOLD } from './statusNoticeHelpers.js';
 import { isSupportedJetBrainsTerminal, toIDEDisplayName, getTerminalIdeType } from './ide.js';
 import { isJetBrainsPluginInstalledCachedSync } from './jetbrains.js';
+import { getAPIProvider } from './model/providers.js';
 
 // Types
 export type StatusNoticeType = 'warning' | 'info';
@@ -99,6 +100,9 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
   id: 'both-auth-methods',
   type: 'warning',
   isActive: () => {
+    if (getAPIProvider() !== 'firstParty') {
+      return false;
+    }
     const {
       source: apiKeySource
     } = getAnthropicApiKeyWithSource({
