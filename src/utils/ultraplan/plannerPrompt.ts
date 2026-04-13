@@ -5,8 +5,30 @@ import {
 
 export function buildUltraplanSystemPrompt(
   profile: UltraplanProfile = 'deep',
+  hasSeedPlan = false,
 ): string {
   const config = getUltraplanProfileConfig(profile)
+  const outputSections = hasSeedPlan
+    ? [
+        '1. Goal',
+        '2. Existing Plan Assessment',
+        '3. Keep',
+        '4. Change',
+        '5. Add',
+        '6. Revised Execution Plan',
+        '7. Risks',
+        '8. Validation',
+      ]
+    : [
+        '1. Goal',
+        '2. Constraints',
+        '3. Current Codebase Findings',
+        '4. Architecture',
+        '5. Workstreams',
+        '6. Risks',
+        '7. Validation',
+        '8. Step-by-step Execution Plan',
+      ]
   return [
     'You are running a local ultraplan session inside freecode.',
     'Your job is to produce a deep implementation plan only.',
@@ -23,14 +45,7 @@ export function buildUltraplanSystemPrompt(
     '',
     'Output format:',
     'Return only Markdown with these sections in order:',
-    '1. Goal',
-    '2. Constraints',
-    '3. Current Codebase Findings',
-    '4. Architecture',
-    '5. Workstreams',
-    '6. Risks',
-    '7. Validation',
-    '8. Step-by-step Execution Plan',
+    ...outputSections,
   ].join('\n')
 }
 
@@ -55,6 +70,12 @@ export function buildUltraplanUserPrompt(
     ].join('\n'),
   )
   if (seedPlan?.trim()) {
+    parts.push(
+      [
+        'Start by critiquing the draft plan against the current codebase and task.',
+        'Then produce a structured refinement using Keep / Change / Add before writing the revised execution plan.',
+      ].join(' '),
+    )
     parts.push(`Existing draft plan to refine:\n\n${seedPlan.trim()}`)
   }
   return parts.join('\n\n')

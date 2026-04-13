@@ -80,7 +80,7 @@ export async function startLocalUltraplan(opts: {
   )
   await writeFile(
     paths.systemPromptPath,
-    buildUltraplanSystemPrompt(profile),
+    buildUltraplanSystemPrompt(profile, Boolean(seedPlan?.trim())),
     'utf8',
   )
   await writeFile(
