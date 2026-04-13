@@ -86,3 +86,19 @@ export function formatUltraplanArtifactPreview(
   if (normalized.length <= maxChars) return normalized
   return `${normalized.slice(0, maxChars)}\n\n... (truncated)`
 }
+
+export function buildUltraplanArtifactMessage(
+  key: UltraplanArtifactKey,
+  runDir: string,
+  content: string | null,
+): string {
+  const descriptor = ARTIFACTS.find(item => item.key === key)
+  const title = descriptor?.label ?? key
+  const body = formatUltraplanArtifactPreview(key, content, 12000)
+  return [
+    `Ultraplan artifact: ${title}`,
+    `Run dir: ${runDir}`,
+    '',
+    body,
+  ].join('\n')
+}

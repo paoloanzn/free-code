@@ -4,6 +4,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 
 import {
+  buildUltraplanArtifactMessage,
   formatUltraplanArtifactPreview,
   listUltraplanArtifacts,
   readUltraplanArtifact,
@@ -54,5 +55,18 @@ describe('formatUltraplanArtifactPreview', () => {
     const preview = formatUltraplanArtifactPreview('plan', long, 120)
     expect(preview.length).toBeLessThanOrEqual(150)
     expect(preview).toContain('(truncated)')
+  })
+})
+
+describe('buildUltraplanArtifactMessage', () => {
+  test('wraps artifact content for session reinsertion', () => {
+    const message = buildUltraplanArtifactMessage(
+      'stdout',
+      'C:/runs/demo',
+      'done',
+    )
+    expect(message).toContain('Ultraplan artifact: Planner stdout')
+    expect(message).toContain('C:/runs/demo')
+    expect(message).toContain('done')
   })
 })

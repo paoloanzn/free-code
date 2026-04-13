@@ -13,7 +13,9 @@ import {
   prepareUserContent,
 } from '../utils/messages.js'
 import { updateTaskState } from '../utils/task/framework.js'
+import { openPath } from '../utils/browser.js'
 import {
+  buildUltraplanArtifactMessage,
   formatUltraplanArtifactPreview,
   listUltraplanArtifacts,
   readUltraplanArtifact,
@@ -25,6 +27,8 @@ type UltraplanChoice =
   | 'preview-workspace'
   | 'preview-stdout'
   | 'preview-stderr'
+  | 'insert-current'
+  | 'open-run-dir'
   | 'insert'
   | 'save'
   | 'dismiss'
@@ -86,7 +90,7 @@ export function UltraplanChoiceDialog({
   }, [plan, selectedArtifact, sessionId])
 
   const handleChoice = useCallback(
-    (choice: UltraplanChoice) => {
+    async (choice: UltraplanChoice) => {
       if (choice === 'preview-plan') {
         setSelectedArtifact('plan')
         return
@@ -102,6 +106,39 @@ export function UltraplanChoiceDialog({
       if (choice === 'preview-stderr') {
         setSelectedArtifact('stderr')
         return
+      }
+      if (choice === 'open-run-dir') {
+        const ok = await openPath(sessionId)
+        setMessages(prev => [
+          ...prev,
+          createSystemMessage(
+            ok
+              ? `Opened Ultraplan run directory: ${sessionId}`
+              : `Failed to open Ultraplan run directory: ${sessionId}`,
+            ok ? 'info' : 'warning',
+          ),
+        ])
+        return
+      }
+      if (choice === 'insert-current') {
+        const injected =
+          selectedArtifact === 'plan'
+            ? plan
+            : buildUltraplanArtifactMessage(
+                selectedArtifact,
+                sessionId,
+                artifactContents[selectedArtifact] ?? currentContent,
+              )
+        setMessages(prev => [
+          ...prev,
+          createSystemMessage(
+            `Ultraplan finished. Inserting ${currentArtifact?.label ?? 'artifact'} into this session.`,
+            'info',
+          ),
+          createUserMessage({
+            content: prepareUserContent({ inputString: injected }),
+          }),
+        ])
       }
 
       if (choice === 'insert') {
@@ -126,6 +163,8 @@ export function UltraplanChoiceDialog({
               summary:
                 choice === 'insert'
                   ? 'Plan inserted into the session'
+                  : choice === 'insert-current'
+                    ? `${currentArtifact?.label ?? 'Artifact'} inserted into the session`
                   : choice === 'save'
                     ? `Plan kept on disk: ${sessionId}`
                     : 'Plan dismissed',
@@ -137,9 +176,19 @@ export function UltraplanChoiceDialog({
         ...prev,
         ultraplanPendingChoice: undefined,
         ultraplanSessionUrl: undefined,
-        }))
+      }))
     },
-    [plan, sessionId, taskId, setMessages, setAppState],
+    [
+      artifactContents,
+      currentArtifact?.label,
+      currentContent,
+      plan,
+      selectedArtifact,
+      sessionId,
+      taskId,
+      setMessages,
+      setAppState,
+    ],
   )
 
   const currentArtifact =
@@ -203,6 +252,16 @@ export function UltraplanChoiceDialog({
             value: 'insert' as const,
             label: 'Insert plan here',
             description: 'Send the local plan back into this session',
+          },
+          {
+            value: 'insert-current' as const,
+            label: 'Insert current artifact',
+            description: 'Send the currently previewed artifact into this session',
+          },
+          {
+            value: 'open-run-dir' as const,
+            label: 'Open run dir',
+            description: 'Open the local Ultraplan artifact folder in your OS',
           },
           {
             value: 'save' as const,
