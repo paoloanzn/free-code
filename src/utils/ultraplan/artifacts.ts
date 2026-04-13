@@ -40,6 +40,8 @@ export type UltraplanRunPaths = {
   requestPath: string
   statusPath: string
   summaryPath: string
+  workspaceSnapshotPath: string
+  workspaceSnapshotJsonPath: string
   planPath: string
   promptPath: string
   systemPromptPath: string
@@ -67,6 +69,8 @@ export async function createUltraplanRunPaths(): Promise<UltraplanRunPaths> {
     requestPath: join(dir, 'request.json'),
     statusPath: join(dir, 'status.json'),
     summaryPath: join(dir, 'summary.json'),
+    workspaceSnapshotPath: join(dir, 'workspace-snapshot.md'),
+    workspaceSnapshotJsonPath: join(dir, 'workspace-snapshot.json'),
     planPath: join(dir, 'plan.md'),
     promptPath: join(dir, 'prompt.txt'),
     systemPromptPath: join(dir, 'system-prompt.txt'),

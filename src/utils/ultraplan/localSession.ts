@@ -24,6 +24,10 @@ import {
   buildUltraplanUserPrompt,
 } from './plannerPrompt.js'
 import { launchUltraplanTerminal } from './terminalLauncher.js'
+import {
+  buildWorkspaceSnapshotMarkdown,
+  collectWorkspaceSnapshot,
+} from './workspaceSnapshot.js'
 
 const POLL_MS = 1200
 
@@ -47,10 +51,23 @@ export async function startLocalUltraplan(opts: {
     ...(seedPlan ? { seedPlan } : {}),
   })
   await writeUltraplanStatus(paths, 'launching', 'Preparing local planner')
+  const workspaceSnapshot = await collectWorkspaceSnapshot(process.cwd())
+  const workspaceSnapshotMarkdown =
+    buildWorkspaceSnapshotMarkdown(workspaceSnapshot)
+  await writeFile(
+    paths.workspaceSnapshotJsonPath,
+    JSON.stringify(workspaceSnapshot, null, 2),
+    'utf8',
+  )
+  await writeFile(
+    paths.workspaceSnapshotPath,
+    workspaceSnapshotMarkdown,
+    'utf8',
+  )
   await writeFile(paths.systemPromptPath, buildUltraplanSystemPrompt(), 'utf8')
   await writeFile(
     paths.promptPath,
-    buildUltraplanUserPrompt(topic, seedPlan),
+    buildUltraplanUserPrompt(topic, workspaceSnapshotMarkdown, seedPlan),
     'utf8',
   )
   await writePlannerScript(paths)
@@ -294,6 +311,8 @@ function materializeRunPaths(dir: string): UltraplanRunPaths {
     requestPath: `${dir}/request.json`,
     statusPath: `${dir}/status.json`,
     summaryPath: `${dir}/summary.json`,
+    workspaceSnapshotPath: `${dir}/workspace-snapshot.md`,
+    workspaceSnapshotJsonPath: `${dir}/workspace-snapshot.json`,
     planPath: `${dir}/plan.md`,
     promptPath: `${dir}/prompt.txt`,
     systemPromptPath: `${dir}/system-prompt.txt`,
