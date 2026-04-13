@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { Select } from './CustomSelect/index.js'
 import { Dialog } from './design-system/Dialog.js'
@@ -13,8 +13,21 @@ import {
   prepareUserContent,
 } from '../utils/messages.js'
 import { updateTaskState } from '../utils/task/framework.js'
+import {
+  formatUltraplanArtifactPreview,
+  listUltraplanArtifacts,
+  readUltraplanArtifact,
+  type UltraplanArtifactKey,
+} from '../utils/ultraplan/artifactPreview.js'
 
-type UltraplanChoice = 'insert' | 'save' | 'dismiss'
+type UltraplanChoice =
+  | 'preview-plan'
+  | 'preview-workspace'
+  | 'preview-stdout'
+  | 'preview-stderr'
+  | 'insert'
+  | 'save'
+  | 'dismiss'
 
 type Props = {
   plan: string
@@ -33,9 +46,64 @@ export function UltraplanChoiceDialog({
   setMessages,
 }: Props): React.ReactNode {
   const setAppState = useSetAppState()
+  const artifactDescriptors = useMemo(
+    () => listUltraplanArtifacts(sessionId),
+    [sessionId],
+  )
+  const [selectedArtifact, setSelectedArtifact] =
+    useState<UltraplanArtifactKey>('plan')
+  const [artifactContents, setArtifactContents] = useState<
+    Partial<Record<UltraplanArtifactKey, string | null>>
+  >({
+    plan,
+  })
+
+  useEffect(() => {
+    let disposed = false
+    if (selectedArtifact === 'plan') {
+      setArtifactContents(prev =>
+        prev.plan === plan
+          ? prev
+          : {
+              ...prev,
+              plan,
+            },
+      )
+      return
+    }
+
+    void readUltraplanArtifact(sessionId, selectedArtifact).then(content => {
+      if (disposed) return
+      setArtifactContents(prev => ({
+        ...prev,
+        [selectedArtifact]: content,
+      }))
+    })
+
+    return () => {
+      disposed = true
+    }
+  }, [plan, selectedArtifact, sessionId])
 
   const handleChoice = useCallback(
     (choice: UltraplanChoice) => {
+      if (choice === 'preview-plan') {
+        setSelectedArtifact('plan')
+        return
+      }
+      if (choice === 'preview-workspace') {
+        setSelectedArtifact('workspaceSnapshot')
+        return
+      }
+      if (choice === 'preview-stdout') {
+        setSelectedArtifact('stdout')
+        return
+      }
+      if (choice === 'preview-stderr') {
+        setSelectedArtifact('stderr')
+        return
+      }
+
       if (choice === 'insert') {
         setMessages(prev => [
           ...prev,
@@ -69,13 +137,23 @@ export function UltraplanChoiceDialog({
         ...prev,
         ultraplanPendingChoice: undefined,
         ultraplanSessionUrl: undefined,
-      }))
+        }))
     },
     [plan, sessionId, taskId, setMessages, setAppState],
   )
 
-  const displayPlan =
-    plan.length > 2000 ? plan.slice(0, 2000) + '\n\n... (truncated)' : plan
+  const currentArtifact =
+    artifactDescriptors.find(item => item.key === selectedArtifact) ??
+    artifactDescriptors[0]
+  const currentContent =
+    selectedArtifact === 'plan'
+      ? artifactContents.plan ?? plan
+      : artifactContents[selectedArtifact] ?? null
+  const displayPreview = formatUltraplanArtifactPreview(
+    selectedArtifact,
+    currentContent,
+    2400,
+  )
 
   return (
     <Dialog
@@ -84,19 +162,43 @@ export function UltraplanChoiceDialog({
     >
       <Box flexDirection="column" gap={1}>
         <Text dimColor>Local artifact: {sessionId}</Text>
+        <Text dimColor>
+          Viewing: {currentArtifact?.label ?? 'Artifact'}{' '}
+          {currentArtifact ? `(${currentArtifact.filename})` : ''}
+        </Text>
         <Box
           flexDirection="column"
           borderStyle="single"
           borderColor="gray"
           paddingX={1}
-          height={Math.min(displayPlan.split('\n').length + 2, 20)}
+          height={Math.min(displayPreview.split('\n').length + 2, 20)}
           overflow="hidden"
         >
-          <Text>{displayPlan}</Text>
+          <Text>{displayPreview}</Text>
         </Box>
       </Box>
       <Select
         options={[
+          {
+            value: 'preview-plan' as const,
+            label: 'Preview plan',
+            description: 'View the generated plan.md artifact',
+          },
+          {
+            value: 'preview-workspace' as const,
+            label: 'Preview snapshot',
+            description: 'View the workspace-snapshot.md artifact',
+          },
+          {
+            value: 'preview-stdout' as const,
+            label: 'Preview stdout',
+            description: 'View the planner stdout.log artifact',
+          },
+          {
+            value: 'preview-stderr' as const,
+            label: 'Preview stderr',
+            description: 'View the planner stderr.log artifact',
+          },
           {
             value: 'insert' as const,
             label: 'Insert plan here',
