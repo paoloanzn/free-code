@@ -164,3 +164,20 @@ export async function ensureModelStringsInitialized(): Promise<void> {
   // For Bedrock, wait for the profile fetch
   await updateBedrockModelStrings()
 }
+
+export async function refreshModelStringsForCurrentProvider(): Promise<void> {
+  const provider = getAPIProvider()
+
+  if (provider !== 'bedrock') {
+    setModelStringsState(getBuiltinModelStrings(provider))
+    return
+  }
+
+  try {
+    const ms = await getBedrockModelStrings()
+    setModelStringsState(ms)
+  } catch (error) {
+    logError(error as Error)
+    setModelStringsState(getBuiltinModelStrings('bedrock'))
+  }
+}
