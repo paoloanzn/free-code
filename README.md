@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/paoloanzn-free-code-badge.png)](https://mseep.ai/app/paoloanzn-free-code)
+
 <p align="center">
   <img src="assets/screenshot.png" alt="free-code" width="720" />
 </p>
